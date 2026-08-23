@@ -1,497 +1,511 @@
-
-const HISTORY_KEY = "tikgrab_history_v1";
-
-document.addEventListener("DOMContentLoaded", () => {
-    applySavedTheme();
-    renderHistory();
-});
-
-function applySavedTheme() {
-    const saved = localStorage.getItem("tikgrab_theme");
-    const dark = saved === "dark";
-    document.documentElement.classList.toggle("dark", dark);
-    updateThemeIcon(dark);
-}
-
-function toggleDarkMode() {
-    const dark = !document.documentElement.classList.contains("dark");
-    document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem("tikgrab_theme", dark ? "dark" : "light");
-    updateThemeIcon(dark);
-    showToast(dark ? "Dark mode aktif." : "Light mode aktif.", "info");
-}
-
-function updateThemeIcon(dark) {
-    const icon = document.getElementById("themeIcon");
-    if (!icon) return;
-    icon.className = dark ? "fa-solid fa-sun" : "fa-solid fa-moon";
-}
-
-function getHistory() {
-    try {
-        return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-    } catch {
-        return [];
-    }
-}
-
-function saveToHistory(video) {
-    const author = video.author || {};
-    const item = {
-        id: video.id || video.video_id || crypto.randomUUID?.() || String(Date.now()),
-        title: video.title || "TikTok Video",
-        cover: video.cover || video.origin_cover || "",
-        author: author.unique_id || author.uniqueId || author.nickname || "creator",
-        url: video.share_url || video.web_url || input.value.trim(),
-        time: Date.now()
-    };
-
-    let history = getHistory().filter(x => x.url !== item.url);
-    history.unshift(item);
-    history = history.slice(0, 6);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-    renderHistory();
-}
-
-function renderHistory() {
-    const list = document.getElementById("historyList");
-    const empty = document.getElementById("historyEmpty");
-    if (!list || !empty) return;
-
-    const history = getHistory();
-    list.innerHTML = "";
-
-    empty.classList.toggle("hidden", history.length > 0);
-
-    history.forEach((item, index) => {
-        const card = document.createElement("div");
-        card.className = "history-card bg-slate-50 border border-slate-200 rounded-2xl p-3 flex gap-3 items-center";
-        const cover = item.cover
-            ? `<img src="${escapeHtml(item.cover)}" class="w-16 h-20 rounded-xl object-cover bg-slate-200 shrink-0" alt="">`
-            : `<div class="w-16 h-20 rounded-xl bg-slate-200 flex items-center justify-center shrink-0 text-slate-400"><i class="fa-brands fa-tiktok text-xl"></i></div>`;
-
-        card.innerHTML = `
-            ${cover}
-            <div class="min-w-0 flex-grow">
-                <p class="font-semibold text-sm text-slate-900 line-clamp-2">${escapeHtml(item.title)}</p>
-                <p class="mt-1 text-xs text-slate-500 truncate">@${escapeHtml(item.author)}</p>
-                <button type="button" class="mt-3 text-xs font-semibold text-blue-600 hover:text-blue-700">Gunakan Link</button>
-            </div>
-        `;
-
-        card.querySelector("button").addEventListener("click", () => {
-            input.value = item.url || "";
-            window.scrollTo({top:0, behavior:"smooth"});
-            input.focus();
-            showToast("Link riwayat dimasukkan.", "success");
-        });
-
-        list.appendChild(card);
-    });
-}
-
-function clearHistory() {
-    localStorage.removeItem(HISTORY_KEY);
-    renderHistory();
-    showToast("Riwayat berhasil dihapus.", "success");
-}
-
-function escapeHtml(value) {
-    return String(value ?? "")
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#039;");
-}
-
-const API_URL = "https://www.tikwm.com/api/";
-
-const form = document.getElementById("downloadForm");
-const input = document.getElementById("tiktokUrl");
-const submitButton = document.getElementById("btnSubmit");
-const loadingState = document.getElementById("loadingState");
-const resultSection = document.getElementById("resultSection");
-const errorAlert = document.getElementById("errorAlert");
-const errorMessage = document.getElementById("errorMessage");
-
-const resThumbnail = document.getElementById("resThumbnail");
-const resVideo = document.getElementById("resVideo");
-const previewPlayHint = document.getElementById("previewPlayHint");
-const previewStatus = document.getElementById("previewStatus");
-const thumbnailFallback = document.getElementById("thumbnailFallback");
-const resDuration = document.getElementById("resDuration");
-const resAvatar = document.getElementById("resAvatar");
-const resAuthor = document.getElementById("resAuthor");
-const resAuthorName = document.getElementById("resAuthorName");
-const resTitle = document.getElementById("resTitle");
-const resLikes = document.getElementById("resLikes");
-const resComments = document.getElementById("resComments");
-const resShares = document.getElementById("resShares");
-
-let currentVideo = null;
-
-form.addEventListener("submit", handleDownloadSubmit);
-
-async function handleDownloadSubmit(event) {
-    event.preventDefault();
-
-    const url = input.value.trim();
-    hideError();
-    resultSection.classList.add("hidden");
-
-    if (!validateTikTokUrl(url)) {
-        showError("Masukkan tautan TikTok yang valid.");
-        input.focus();
-        return;
-    }
-
-    setLoading(true);
-
-    try {
-        const response = await fetch(`${API_URL}?url=${encodeURIComponent(url)}`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const data = await response.json();
-        console.log("TikGrab API response:", data);
-
-        if (!data || data.code !== 0 || !data.data) {
-            throw new Error(data?.msg || "Data video tidak tersedia.");
-        }
-
-        currentVideo = data.data;
-        populateResult(currentVideo);
-        saveToHistory(currentVideo);
-
-        resultSection.classList.remove("hidden");
-        resultSection.scrollIntoView({behavior:"smooth", block:"start"});
-        showToast("Video berhasil diproses.", "success");
-    } catch (error) {
-        console.error("TikGrab error:", error);
-        showError("Gagal memproses video. Periksa link dan coba lagi. Jika tetap gagal, layanan sumber mungkin sedang tidak tersedia.");
-        showToast("Video gagal diproses.", "error");
-    } finally {
-        setLoading(false);
-    }
-}
-
-function validateTikTokUrl(url) {
-    if (!url) return false;
-    try {
-        const host = new URL(url).hostname.toLowerCase();
-        return host === "tiktok.com" || host.endsWith(".tiktok.com");
-    } catch {
-        return false;
-    }
-}
-
-
-function setupVideoPreview(video) {
-    if (!resVideo) return;
-    const previewUrl = video.play || video.hdplay || "";
-
-    resVideo.pause();
-    resVideo.removeAttribute("src");
-    resVideo.load();
-    resVideo.classList.add("hidden");
-    resVideo.poster = video.cover || video.origin_cover || "";
-    if (resThumbnail) resThumbnail.classList.remove("hidden");
-    if (previewPlayHint) previewPlayHint.classList.remove("hidden");
-
-    if (!previewUrl) {
-        if (previewStatus) previewStatus.innerHTML = '<i class="fa-solid fa-image mr-1"></i>Thumbnail preview';
-        return;
-    }
-
-    resVideo.src = previewUrl;
-    resVideo.onloadedmetadata = () => {
-        resVideo.classList.remove("hidden");
-        if (resThumbnail) resThumbnail.classList.add("hidden");
-        if (previewPlayHint) previewPlayHint.classList.add("hidden");
-        if (previewStatus) previewStatus.innerHTML = '<i class="fa-solid fa-circle-check mr-1 text-emerald-500"></i>Video siap diputar';
-    };
-    resVideo.onerror = () => {
-        resVideo.classList.add("hidden");
-        if (resThumbnail) resThumbnail.classList.remove("hidden");
-        if (previewPlayHint) previewPlayHint.classList.remove("hidden");
-        if (previewStatus) previewStatus.innerHTML = '<i class="fa-solid fa-image mr-1"></i>Preview video tidak tersedia';
-    };
-}
-
-function populateResult(video) {
-    const author = video.author || {};
-    setupVideoPreview(video);
-
-    const thumbnail = video.cover || video.origin_cover || video.ai_dynamic_cover || "";
-    if (thumbnail) {
-        thumbnailFallback.classList.add("hidden");
-        thumbnailFallback.classList.remove("flex");
-        resThumbnail.classList.remove("hidden");
-        resThumbnail.src = thumbnail;
-        resThumbnail.onerror = () => {
-            resThumbnail.classList.add("hidden");
-            thumbnailFallback.classList.remove("hidden");
-            thumbnailFallback.classList.add("flex");
-        };
-    } else {
-        resThumbnail.classList.add("hidden");
-        thumbnailFallback.classList.remove("hidden");
-        thumbnailFallback.classList.add("flex");
-    }
-
-    const avatar = author.avatar || author.avatar_thumb || "";
-    if (avatar) resAvatar.src = avatar;
-    else resAvatar.removeAttribute("src");
-
-    const username = author.unique_id || author.uniqueId || "";
-    const nickname = author.nickname || "TikTok Creator";
-
-    resAuthor.textContent = username ? `@${username}` : nickname;
-    resAuthorName.textContent = nickname;
-    resTitle.textContent = video.title || "TikTok Video";
-    resDuration.textContent = formatDuration(video.duration);
-    resLikes.textContent = formatNumber(video.digg_count);
-    resComments.textContent = formatNumber(video.comment_count);
-    resShares.textContent = formatNumber(video.share_count);
-}
-
-function getVideoShareUrl() {
-    if (!currentVideo) return input?.value?.trim() || "";
-    return currentVideo.share_url || currentVideo.web_url || currentVideo.url || input.value.trim();
-}
-
-async function copyVideoLink() {
-    const url = getVideoShareUrl();
-    if (!url) {
-        showToast("Link video belum tersedia.", "error");
-        return;
-    }
-    try {
-        await navigator.clipboard.writeText(url);
-        showToast("Link video berhasil disalin.", "success");
-    } catch (error) {
-        showToast("Tidak bisa menyalin otomatis. Salin link dari kolom URL.", "error");
-    }
-}
-
-async function shareVideo() {
-    const url = getVideoShareUrl();
-    if (!url) {
-        showToast("Link video belum tersedia.", "error");
-        return;
-    }
-    const title = currentVideo?.title || "Video TikTok";
-    if (navigator.share) {
-        try {
-            await navigator.share({ title: "TikGrab", text: title, url });
-            showToast("Berhasil dibagikan.", "success");
-        } catch (error) {
-            if (error?.name !== "AbortError") showToast("Gagal membagikan video.", "error");
-        }
-    } else {
-        await copyVideoLink();
-        showToast("Fitur Share tidak tersedia. Link sudah disalin.", "info");
-    }
-}
-
-function setDownloadStatus(percent, text) {
-    const box=document.getElementById("downloadStatus");
-    const bar=document.getElementById("downloadProgress");
-    const pct=document.getElementById("downloadStatusPercent");
-    const label=document.getElementById("downloadStatusText");
-    if(!box||!bar||!pct||!label) return;
-    box.classList.remove("hidden");
-    const value=Math.max(0,Math.min(100,percent));
-    bar.style.width=value+"%";
-    pct.textContent=value+"%";
-    label.textContent=text;
-    if(value>=100) setTimeout(()=>box.classList.add("hidden"),1800);
-}
-
-function downloadMedia(type, label) {
-    if (!currentVideo) {
-        showToast("Proses video terlebih dahulu.", "error");
-        return;
-    }
-
-    let url = "";
-
-    if (type === "mp4-nwm") url = currentVideo.play || "";
-    if (type === "mp4-hd") url = currentVideo.hdplay || currentVideo.play || "";
-    if (type === "mp3") url = currentVideo.music || "";
-
-    if (!url) {
-        showToast(`${label} tidak tersedia untuk video ini.`, "error");
-        return;
-    }
-
-    setDownloadStatus(25, `Menyiapkan ${label}...`);
-    showToast(`Menyiapkan ${label}...`, "info");
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setDownloadStatus(100, "Link download siap dibuka");
-    showToast(`${label} siap dibuka.`, "success");
-}
-
-
-async function pasteAndDownload() {
-    try {
-        let text = "";
-
-        if (navigator.clipboard?.readText) {
-            text = (await navigator.clipboard.readText()).trim();
-        }
-
-        if (!text) {
-            input.focus();
-            showToast("Clipboard kosong. Tempel link TikTok terlebih dahulu.", "error");
-            return;
-        }
-
-        input.value = text;
-        hideError();
-
-        if (!validateTikTokUrl(text)) {
-            showError("Isi clipboard bukan tautan TikTok yang valid.");
-            input.focus();
-            return;
-        }
-
-        showToast("Link ditemukan. Memproses video...", "info");
-
-        // Jalankan alur download yang sama dengan tombol Download biasa.
-        await handleDownloadSubmit({ preventDefault: () => {} });
-    } catch (error) {
-        console.error("Paste & Download error:", error);
-        input.focus();
-        showToast("Clipboard tidak dapat diakses. Gunakan tombol Tempel lalu Download.", "error");
-    }
-}
-
-async function handlePaste() {
-    try {
-        if (navigator.clipboard?.readText) {
-            const text = await navigator.clipboard.readText();
-            if (text) {
-                input.value = text.trim();
-                hideError();
-                showToast("Tautan berhasil ditempel.", "success");
-                return;
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikGrab - Unduh Video TikTok Tanpa Watermark Gratis</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            DEFAULT: '#0066FF',
+                            hover: '#0052CC',
+                            light: '#E3F2FD',
+                            dark: '#0047B3'
+                        },
+                        secondary: '#0984E3',
+                        surface: '#F8F9FA'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-short': 'bounce 0.8s ease-in-out 2'
+                    }
+                }
             }
         }
-        input.focus();
-        showToast("Tekan Ctrl+V untuk menempelkan link.", "info");
-    } catch {
-        input.focus();
-        showToast("Clipboard tidak dapat diakses. Gunakan Ctrl+V.", "info");
-    }
-}
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F9FA;
+            color: #1E293B;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #0066FF 0%, #00C6FF 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #0066FF 0%, #0052CC 100%);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-primary-light selection:text-primary-dark">
 
-function copySampleLink() {
-    input.value = "https://www.tiktok.com/";
-    input.focus();
-    showToast("Contoh format link dimasukkan. Ganti dengan link video TikTok.", "info");
-}
+    <!-- Navbar Header -->
+    <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm transition-all duration-200">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 sm:h-20">
+                <!-- Logo -->
+                <a href="#" class="flex items-center gap-3 group">
+                    <div class="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
+                        <i class="fa-solid fa-cloud-arrow-down text-xl"></i>
+                    </div>
+                    <div>
+                        <span class="text-xl font-extrabold tracking-tight text-gray-900">Tik<span class="text-primary">Grab</span></span>
+                        <span class="hidden sm:inline-block ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-primary border border-blue-100">Downloader</span>
+                    </div>
+                </a>
 
-function resetDownloader() {
-    form.reset();
-    currentVideo = null;
-    if (resVideo) {
-        resVideo.pause();
-        resVideo.removeAttribute("src");
-        resVideo.load();
-        resVideo.classList.add("hidden");
-    }
-    if (resThumbnail) resThumbnail.classList.remove("hidden");
-    resultSection.classList.add("hidden");
-    loadingState.classList.add("hidden");
-    hideError();
-    window.scrollTo({top:0, behavior:"smooth"});
-}
+                <!-- Nav Links Desktop -->
+                <nav class="hidden md:flex items-center space-x-8 text-sm font-medium text-gray-600">
+                    <a href="#hero" class="hover:text-primary transition-colors">Beranda</a>
+                    <a href="#fitur" class="hover:text-primary transition-colors">Keunggulan</a>
+                    <a href="#cara-kerja" class="hover:text-primary transition-colors">Cara Kerja</a>
+                    <a href="#faq" class="hover:text-primary transition-colors">FAQ</a>
+                </nav>
 
-function setLoading(isLoading) {
-    if (isLoading) {
-        loadingState.classList.remove("hidden");
-        submitButton.disabled = true;
-        submitButton.innerHTML = '<i class="fa-solid fa-spinner spin"></i><span>Memproses...</span>';
-        loadingState.scrollIntoView({behavior:"smooth", block:"center"});
-    } else {
-        loadingState.classList.add("hidden");
-        submitButton.disabled = false;
-        submitButton.innerHTML = '<i class="fa-solid fa-download"></i><span>Download</span>';
-    }
-}
+                <!-- Actions -->
+                <div class="flex items-center space-x-3">
+                    <button onclick="copySampleLink()" class="inline-flex items-center text-xs sm:text-sm font-semibold text-primary bg-primary-light hover:bg-blue-100 px-3 py-2 rounded-lg transition-colors">
+                        <i class="fa-solid fa-wand-magic-sparkles mr-1.5"></i> Coba Contoh Tautan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
 
-function showError(message) {
-    errorMessage.textContent = message;
-    errorAlert.classList.remove("hidden");
-}
+    <!-- Notification Toast Container -->
+    <div id="toastContainer" class="fixed top-20 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
 
-function hideError() {
-    errorAlert.classList.add("hidden");
-    errorMessage.textContent = "";
-}
+    <main class="flex-grow">
+        <!-- Hero Section -->
+        <section id="hero" class="relative pt-10 pb-16 sm:pt-16 sm:pb-24 overflow-hidden">
+            <!-- Background Decorative Orbs -->
+            <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-400/10 rounded-full blur-3xl pointer-events-none -z-10"></div>
+            <div class="absolute top-10 right-10 w-72 h-72 bg-cyan-300/15 rounded-full blur-2xl pointer-events-none -z-10"></div>
 
-function toggleFaq(index) {
-    const answer = document.getElementById(`faqAnswer-${index}`);
-    const icon = document.getElementById(`faqIcon-${index}`);
-    if (!answer || !icon) return;
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 text-center">
+                <!-- Badge -->
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200/60 text-primary text-xs sm:text-sm font-semibold mb-6 shadow-xs">
+                    <span class="flex h-2 w-2 rounded-full bg-primary animate-ping"></span>
+                    <span>100% Gratis & Unlimited Downloader</span>
+                </div>
 
-    const wasHidden = answer.classList.contains("hidden");
+                <!-- Main Heading -->
+                <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 tracking-tight leading-tight sm:leading-none mb-4">
+                    Unduh Video TikTok <br class="hidden sm:block" />
+                    <span class="gradient-text">Tanpa Watermark</span>, Cepat & Gratis
+                </h1>
 
-    for (let i=1;i<=4;i++) {
-        const a=document.getElementById(`faqAnswer-${i}`);
-        const ic=document.getElementById(`faqIcon-${i}`);
-        if(a) a.classList.add("hidden");
-        if(ic) ic.style.transform="rotate(0deg)";
-    }
+                <!-- Subtitle -->
+                <p class="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto mb-8 sm:mb-10 font-normal">
+                    Simpan video TikTok favorit Anda dalam kualitas HD jernih atau format audio MP3 cukup dengan menempelkan tautan tanpa registrasi.
+                </p>
 
-    if(wasHidden) {
-        answer.classList.remove("hidden");
-        icon.style.transform="rotate(180deg)";
-    }
-}
+                <!-- Input Box Container -->
+                <div class="bg-white p-2 sm:p-3 rounded-2xl shadow-xl shadow-blue-900/5 border border-gray-200/80 mb-6 transition-all duration-300 focus-within:ring-4 focus-within:ring-primary/20 focus-within:border-primary">
+                    <form id="downloadForm" onsubmit="prosesDownload(event)" class="flex flex-col sm:flex-row gap-2"></form>
+                        <!-- Input Box -->
+                        <div class="relative flex-grow flex items-center">
+                            <div class="absolute left-4 text-gray-400">
+                                <i class="fa-brands fa-tiktok text-lg"></i>
+                            </div>
+                            <input 
+                                type="url" 
+                                id="tiktokUrl" 
+                                placeholder="Tempel tautan video TikTok di sini..." 
+                                autocomplete="off"
+                                class="w-full pl-11 pr-24 py-3.5 sm:py-4 text-sm sm:text-base text-gray-800 placeholder-gray-400 bg-transparent rounded-xl focus:outline-none"
+                                required
+                            />
+                            <!-- Paste Button -->
+                            <button 
+                                type="button" 
+                                onclick="handlePaste()" 
+                                title="Tempel dari Clipboard"
+                                class="absolute right-2 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+                            >
+                                <i class="fa-regular fa-clipboard"></i>
+                                <span>Tempel</span>
+                            </button>
+                        </div>
 
-function showToast(message, type="info") {
-    const container=document.getElementById("toastContainer");
-    const toast=document.createElement("div");
+                        <!-- Action Button -->
+                        <button 
+                            type="submit" 
+                            id="btnSubmit"
+                            class="gradient-bg hover:bg-primary-hover text-white font-semibold px-6 py-3.5 sm:py-4 rounded-xl shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-base shrink-0"
+                        >
+                            <i class="fa-solid fa-download"></i>
+                            <span>Download</span>
+                        </button>
+                    </form>
+                </div>
 
-    let icon="fa-solid fa-circle-info";
-    let classes="bg-slate-900 text-white";
+                <!-- Fast Links / Samples -->
+                <div class="flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm text-gray-500">
+                    <span class="font-medium text-gray-600">Mendukung Format Tautan:</span>
+                    <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded border border-gray-200">vt.tiktok.com/...</span>
+                    <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded border border-gray-200">vm.tiktok.com/...</span>
+                    <span class="bg-gray-100 text-gray-600 px-2 py-1 rounded border border-gray-200">tiktok.com/@user/video/...</span>
+                </div>
 
-    if(type==="success"){
-        icon="fa-solid fa-circle-check";
-        classes="bg-emerald-700 text-white";
-    } else if(type==="error"){
-        icon="fa-solid fa-circle-exclamation";
-        classes="bg-red-700 text-white";
-    }
+                <!-- Error Alert Box -->
+                <div id="errorAlert" class="hidden mt-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-3 text-left animate-fade-in">
+                    <i class="fa-solid fa-circle-exclamation text-lg shrink-0 text-red-500"></i>
+                    <div>
+                        <p id="errorMessage" class="font-medium">Tautan TikTok tidak valid. Pastikan Anda memasukkan URL yang benar.</p>
+                    </div>
+                </div>
 
-    toast.className=`toast-in ${classes} p-4 rounded-xl shadow-2xl flex items-center gap-3 text-xs sm:text-sm font-medium`;
-    toast.innerHTML=`<i class="${icon} shrink-0"></i><span class="flex-grow"></span><button type="button" class="opacity-70 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>`;
-    toast.querySelector("span").textContent=message;
-    toast.querySelector("button").addEventListener("click",()=>toast.remove());
-    container.appendChild(toast);
+                <!-- Loading State Indicator -->
+                <div id="loadingState" class="hidden mt-8 p-8 bg-white rounded-2xl border border-gray-100 shadow-lg text-center">
+                    <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-50 text-primary mb-3">
+                        <i class="fa-solid fa-circle-notch fa-spin text-2xl"></i>
+                    </div>
+                    <h3 class="text-base font-semibold text-gray-800">Memproses URL Video...</h3>
+                    <p class="text-xs text-gray-500 mt-1">Mengambil data video tanpa watermark dari server TikTok</p>
+                    <div class="w-48 bg-gray-100 h-1.5 rounded-full overflow-hidden mx-auto mt-4">
+                        <div class="bg-primary h-full animate-pulse-fast w-3/4 rounded-full"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-    setTimeout(()=>{if(toast.isConnected) toast.remove();},4500);
-}
+        <!-- Result / Preview Section -->
+        <section id="resultSection" class="hidden max-w-4xl mx-auto px-4 sm:px-6 pb-16">
+            <div class="bg-white rounded-2xl border border-blue-100 shadow-xl overflow-hidden">
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-circle-check text-green-300"></i>
+                        <span class="font-semibold text-sm sm:text-base">Video Berhasil Diproses!</span>
+                    </div>
+                    <button onclick="resetDownloader()" class="text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-md transition">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> Unduh Video Lain
+                    </button>
+                </div>
 
-function formatDuration(seconds) {
-    const total=Number(seconds);
-    if(!Number.isFinite(total)||total<=0) return "00:00";
-    return `${String(Math.floor(total/60)).padStart(2,"0")}:${String(Math.floor(total%60)).padStart(2,"0")}`;
-}
+                <div class="p-6 sm:p-8 flex flex-col md:flex-row gap-6 items-center md:items-start">
+                    <!-- Media Preview Box -->
+                    <div class="w-full md:w-64 shrink-0 relative group">
+                        <div class="aspect-[9/16] bg-gray-900 rounded-xl overflow-hidden shadow-md relative">
+                            <img id="resThumbnail" src="https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=400&q=80" alt="Video Thumbnail" class="w-full h-full object-cover">
+                            <!-- Play Overlay Button -->
+                            <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-90 group-hover:opacity-100 transition">
+                                <div class="w-12 h-12 bg-white/90 text-primary rounded-full flex items-center justify-center pl-1 shadow-lg">
+                                    <i class="fa-solid fa-play text-xl"></i>
+                                </div>
+                            </div>
+                            <span id="resDuration" class="absolute bottom-2 right-2 bg-black/75 text-white text-[10px] font-bold px-2 py-0.5 rounded">00:45</span>
+                        </div>
+                    </div>
 
-function formatNumber(value) {
-    const n=Number(value);
-    if(!Number.isFinite(n)) return "0";
-    if(n>=1000000) return `${(n/1000000).toFixed(1).replace(".0","")}M`;
-    if(n>=1000) return `${(n/1000).toFixed(1).replace(".0","")}K`;
-    return String(n);
-}
+                    <!-- Video Details & Download Options -->
+                    <div class="w-full flex-grow flex flex-col justify-between">
+                        <div>
+                            <!-- Author Profile info -->
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-pink-500 to-yellow-400 p-0.5">
+                                    <img id="resAvatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" alt="Avatar" class="w-full h-full object-cover rounded-full">
+                                </div>
+                                <div>
+                                    <h4 id="resAuthor" class="font-bold text-gray-900 leading-snug">@creative_creator</h4>
+                                    <p id="resAuthorName" class="text-xs text-gray-500">Content Creator Official</p>
+                                </div>
+                            </div>
+
+                            <!-- Title / Caption -->
+                            <p id="resTitle" class="text-gray-700 text-sm sm:text-base font-medium mb-4 line-clamp-3">
+                                Resep rahasia membuat camilan lezat dan praktis hanya dalam 5 menit! 🍔✨ #kuliner #resep #viral #fyp
+                            </p>
+
+                            <!-- Social Stats Mock -->
+                            <div class="flex items-center gap-4 text-xs text-gray-500 mb-6 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                <div><i class="fa-regular fa-heart text-red-500 mr-1"></i> <span id="resLikes">124.5K</span></div>
+                                <div><i class="fa-regular fa-comment text-blue-500 mr-1"></i> <span id="resComments">1,820</span></div>
+                                <div><i class="fa-solid fa-share text-green-500 mr-1"></i> <span id="resShares">5.4K</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Download Action Buttons -->
+                        <div class="space-y-3">
+                            <button 
+                                onclick="downloadMedia('mp4-nwm', 'No Watermark')" 
+                                class="w-full bg-primary hover:bg-primary-hover text-white font-semibold py-3 px-4 rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-between"
+                            >
+                                <span class="flex items-center gap-2 text-sm sm:text-base">
+                                    <i class="fa-solid fa-circle-down text-lg"></i> Download MP4 (Tanpa Watermark)
+                                </span>
+                                <span class="text-xs bg-white/20 px-2 py-0.5 rounded font-normal">HD Original</span>
+                            </button>
+
+                            <button 
+                                onclick="downloadMedia('mp4-hd', 'HD High Quality')" 
+                                class="w-full bg-blue-50 hover:bg-blue-100 text-primary border border-blue-200 font-semibold py-3 px-4 rounded-xl transition flex items-center justify-between"
+                            >
+                                <span class="flex items-center gap-2 text-sm sm:text-base">
+                                    <i class="fa-solid fa-film text-lg"></i> Download MP4 (HD Super Clear)
+                                </span>
+                                <span class="text-xs bg-blue-200/60 px-2 py-0.5 rounded font-normal text-primary-dark">Full HD</span>
+                            </button>
+
+                            <button 
+                                onclick="downloadMedia('mp3', 'Audio MP3 Only')" 
+                                class="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold py-3 px-4 rounded-xl transition flex items-center justify-between"
+                            >
+                                <span class="flex items-center gap-2 text-sm sm:text-base">
+                                    <i class="fa-solid fa-music text-lg"></i> Download Audio (MP3 saja)
+                                </span>
+                                <span class="text-xs bg-emerald-200/60 px-2 py-0.5 rounded font-normal text-emerald-800">320kbps</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Feature Highlights Section -->
+        <section id="fitur" class="py-16 bg-white border-t border-gray-100">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center max-w-2xl mx-auto mb-12 sm:mb-16">
+                    <h2 class="text-xs font-bold text-primary uppercase tracking-widest mb-2">Mengapa Memilih Kami</h2>
+                    <p class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Fitur Unggulan TikGrab</p>
+                    <p class="text-gray-600 text-sm sm:text-base mt-2">Pengalaman mengunduh konten TikTok yang cepat, aman, dan memuaskan tanpa gangguan iklan berlebih.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Feature Card 1 -->
+                    <div class="p-6 rounded-2xl bg-surface border border-gray-100 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-500/5 transition duration-300">
+                        <div class="w-12 h-12 rounded-xl bg-blue-100 text-primary flex items-center justify-center mb-5 text-xl font-bold">
+                            <i class="fa-solid fa-ban"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">Tanpa Watermark</h3>
+                        <p class="text-sm text-gray-600 leading-relaxed">Hasil unduhan bersih 100% dari logo watermark TikTok maupun username melayang pada video.</p>
+                    </div>
+
+                    <!-- Feature Card 2 -->
+                    <div class="p-6 rounded-2xl bg-surface border border-gray-100 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-500/5 transition duration-300">
+                        <div class="w-12 h-12 rounded-xl bg-blue-100 text-primary flex items-center justify-center mb-5 text-xl font-bold">
+                            <i class="fa-solid fa-highlighter"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">Kualitas HD Asli</h3>
+                        <p class="text-sm text-gray-600 leading-relaxed">Menjaga resolusi dan framerate asli dari video tanpa kompresi berlebih yang merusak visual.</p>
+                    </div>
+
+                    <!-- Feature Card 3 -->
+                    <div class="p-6 rounded-2xl bg-surface border border-gray-100 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-500/5 transition duration-300">
+                        <div class="w-12 h-12 rounded-xl bg-blue-100 text-primary flex items-center justify-center mb-5 text-xl font-bold">
+                            <i class="fa-solid fa-music"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">MP4 & Audio MP3</h3>
+                        <p class="text-sm text-gray-600 leading-relaxed">Ekstrak lagu viral atau sound favorit dari TikTok ke dalam format file MP3 kualitas jernih.</p>
+                    </div>
+
+                    <!-- Feature Card 4 -->
+                    <div class="p-6 rounded-2xl bg-surface border border-gray-100 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-500/5 transition duration-300">
+                        <div class="w-12 h-12 rounded-xl bg-blue-100 text-primary flex items-center justify-center mb-5 text-xl font-bold">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">100% Gratis & Bebas Limit</h3>
+                        <p class="text-sm text-gray-600 leading-relaxed">Tidak perlu mendaftar akun, tanpa biaya langganan, dan dapat digunakan sepuasnya kapan saja.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step-by-Step Guide Section -->
+        <section id="cara-kerja" class="py-16 bg-surface border-t border-gray-200/60">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center max-w-2xl mx-auto mb-12 sm:mb-16">
+                    <h2 class="text-xs font-bold text-primary uppercase tracking-widest mb-2">Panduan Penggunaan</h2>
+                    <p class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Cara Mengunduh Dalam 3 Langkah</p>
+                    <p class="text-gray-600 text-sm sm:text-base mt-2">Proses cepat hanya membutuhkan waktu kurang dari 5 detik.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+                    <!-- Step 1 -->
+                    <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm relative flex flex-col items-center text-center group hover:-translate-y-1 transition duration-300">
+                        <div class="w-12 h-12 rounded-full gradient-bg text-white font-black text-xl flex items-center justify-center mb-6 shadow-md shadow-blue-500/20">
+                            1
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">Salin URL TikTok</h3>
+                        <p class="text-sm text-gray-600 leading-relaxed">
+                            Buka aplikasi TikTok atau browser, temukan video yang diinginkan, klik tombol <strong>"Bagikan" (Share)</strong> dan pilih <strong>"Salin Tautan" (Copy Link)</strong>.
+                        </p>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm relative flex flex-col items-center text-center group hover:-translate-y-1 transition duration-300">
+                        <div class="w-12 h-12 rounded-full gradient-bg text-white font-black text-xl flex items-center justify-center mb-6 shadow-md shadow-blue-500/20">
+                            2
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">Tempel & Klik Unduh</h3>
+                        <p class="text-sm text-gray-600 leading-relaxed">
+                            Kembali ke website TikGrab, tempelkan (paste) tautan pada kolom input yang tersedia di bagian atas, lalu tekan tombol <strong>"Download"</strong>.
+                        </p>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm relative flex flex-col items-center text-center group hover:-translate-y-1 transition duration-300">
+                        <div class="w-12 h-12 rounded-full gradient-bg text-white font-black text-xl flex items-center justify-center mb-6 shadow-md shadow-blue-500/20">
+                            3
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">Pilih Format & Simpan</h3>
+                        <p class="text-sm text-gray-600 leading-relaxed">
+                            Tunggu beberapa saat hingga preview muncul. Pilih format file yang diinginkan (MP4 No Watermark atau MP3 Audio) untuk menyimpan file ke perangkat.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section id="faq" class="py-16 bg-white border-t border-gray-100">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-xs font-bold text-primary uppercase tracking-widest mb-2">Bantuan</h2>
+                    <p class="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Pertanyaan yang Sering Diajukan (FAQ)</p>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- FAQ Item 1 -->
+                    <div class="border border-gray-200 rounded-xl overflow-hidden">
+                        <button onclick="toggleFaq(1)" class="w-full px-6 py-4 text-left font-semibold text-gray-900 bg-gray-50 hover:bg-blue-50/50 flex justify-between items-center transition">
+                            <span>Apakah layanan unduh video TikTok ini benar-benar gratis?</span>
+                            <i id="faqIcon-1" class="fa-solid fa-chevron-down text-primary transition-transform duration-200"></i>
+                        </button>
+                        <div id="faqAnswer-1" class="hidden px-6 py-4 text-sm text-gray-600 border-t border-gray-100 bg-white leading-relaxed">
+                            Ya, 100% gratis! Anda dapat mengunduh video TikTok sebanyak yang Anda mau tanpa perlu membayar, berlangganan, atau mendaftarkan akun.
+                        </div>
+                    </div>
+
+                    <!-- FAQ Item 2 -->
+                    <div class="border border-gray-200 rounded-xl overflow-hidden">
+                        <button onclick="toggleFaq(2)" class="w-full px-6 py-4 text-left font-semibold text-gray-900 bg-gray-50 hover:bg-blue-50/50 flex justify-between items-center transition">
+                            <span>Bagaimana cara mendapatkan tautan (link) video dari aplikasi TikTok?</span>
+                            <i id="faqIcon-2" class="fa-solid fa-chevron-down text-primary transition-transform duration-200"></i>
+                        </button>
+                        <div id="faqAnswer-2" class="hidden px-6 py-4 text-sm text-gray-600 border-t border-gray-100 bg-white leading-relaxed">
+                            Buka aplikasi TikTok, pilih video yang ingin Anda simpan. Tekan ikon <strong>"Bagikan" (Share)</strong> di sudut kanan bawah, kemudian pilih ikon <strong>"Salin Tautan" (Copy Link)</strong>. Tautan akan tersimpan di clipboard Anda.
+                        </div>
+                    </div>
+
+                    <!-- FAQ Item 3 -->
+                    <div class="border border-gray-200 rounded-xl overflow-hidden">
+                        <button onclick="toggleFaq(3)" class="w-full px-6 py-4 text-left font-semibold text-gray-900 bg-gray-50 hover:bg-blue-50/50 flex justify-between items-center transition">
+                            <span>Di mana hasil unduhan video tersimpan di perangkat saya?</span>
+                            <i id="faqIcon-3" class="fa-solid fa-chevron-down text-primary transition-transform duration-200"></i>
+                        </button>
+                        <div id="faqAnswer-3" class="hidden px-6 py-4 text-sm text-gray-600 border-t border-gray-100 bg-white leading-relaxed">
+                            Secara default, file video atau MP3 yang telah diunduh akan otomatis tersimpan di folder <strong>"Downloads" / "Unduhan"</strong> di perangkat Android, iOS, Windows, atau Mac Anda.
+                        </div>
+                    </div>
+
+                    <!-- FAQ Item 4 -->
+                    <div class="border border-gray-200 rounded-xl overflow-hidden">
+                        <button onclick="toggleFaq(4)" class="w-full px-6 py-4 text-left font-semibold text-gray-900 bg-gray-50 hover:bg-blue-50/50 flex justify-between items-center transition">
+                            <span>Apakah bisa mengunduh video di HP Android & iPhone (iOS)?</span>
+                            <i id="faqIcon-4" class="fa-solid fa-chevron-down text-primary transition-transform duration-200"></i>
+                        </button>
+                        <div id="faqAnswer-4" class="hidden px-6 py-4 text-sm text-gray-600 border-t border-gray-100 bg-white leading-relaxed">
+                            Tentu saja! TikGrab dirancang responsif dan kompatibel sepenuhnya dengan peramban (browser) di Android (Chrome, Firefox, Opera) maupun iPhone/iPad (Safari, Chrome).
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Callout Banner -->
+        <section class="py-12 bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+            <div class="max-w-4xl mx-auto px-4 text-center">
+                <h3 class="text-2xl sm:text-3xl font-extrabold mb-3">Siap Mengunduh Video TikTok Favorit Anda?</h3>
+                <p class="text-blue-100 text-sm sm:text-base mb-6 max-w-xl mx-auto">Tempel tautan video sekarang dan nikmati unduhan tanpa watermark super cepat.</p>
+                <a href="#hero" class="inline-flex items-center gap-2 bg-white text-primary hover:bg-blue-50 font-bold px-8 py-3.5 rounded-xl shadow-lg transition transform hover:-translate-y-0.5">
+                    <i class="fa-solid fa-arrow-up"></i> Unduh Sekarang
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer Section -->
+    <footer class="bg-gray-900 text-gray-400 py-12 border-t border-gray-800">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+                <!-- Col 1: Brand info -->
+                <div class="md:col-span-2">
+                    <div class="flex items-center gap-2 text-white font-extrabold text-xl mb-3">
+                        <div class="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center text-white text-sm">
+                            <i class="fa-solid fa-cloud-arrow-down"></i>
+                        </div>
+                        <span>Tik<span class="text-primary">Grab</span></span>
+                    </div>
+                    <p class="text-xs sm:text-sm text-gray-400 max-w-md leading-relaxed mb-4">
+                        Layanan online pengunduh video TikTok gratis tanpa watermark terbaik. Cepat, praktis, dan mendukung format MP4 & MP3 di semua perangkat.
+                    </p>
+                </div>
+
+                <!-- Col 2: Quick Links -->
+                <div>
+                    <h4 class="text-sm font-semibold text-white uppercase tracking-wider mb-4">Navigasi</h4>
+                    <ul class="space-y-2 text-xs sm:text-sm">
+                        <li><a href="#hero" class="hover:text-white transition">Pengunduh Utama</a></li>
+                        <li><a href="#fitur" class="hover:text-white transition">Fitur Unggulan</a></li>
+                        <li><a href="#cara-kerja" class="hover:text-white transition">Cara Menggunakan</a></li>
+                        <li><a href="#faq" class="hover:text-white transition">Pertanyaan Umum (FAQ)</a></li>
+                    </ul>
+                </div>
+
+                <!-- Col 3: Legal & Disclaimer -->
+                <div>
+                    <h4 class="text-sm font-semibold text-white uppercase tracking-wider mb-4">Kebijakan</h4>
+                    <ul class="space-y-2 text-xs sm:text-sm">
+                        <li><a href="#" onclick="showToast('Halaman Privacy Policy dimuat', 'info'); return false;" class="hover:text-white transition">Privacy Policy</a></li>
+                        <li><a href="#" onclick="showToast('Halaman Terms of Service dimuat', 'info'); return false;" class="hover:text-white transition">Terms of Service</a></li>
+                        <li><a href="#" onclick="showToast('Halaman Contact Us dimuat', 'info'); return false;" class="hover:text-white transition">Hubungi Kami</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <hr class="border-gray-800 mb-6">
+
+            <!-- Disclaimer Notice -->
+            <div class="bg-gray-800/60 p-4 rounded-xl border border-gray-800 text-[11px] sm:text-xs text-gray-500 mb-6 leading-relaxed">
+                <span class="font-bold text-gray-400">Disclaimer Hukum:</span> TikGrab tidak terafiliasi, diendors, disponsori, atau secara khusus disetujui oleh TikTok atau ByteDance Ltd. Kami tidak meng-host konten video apa pun di server kami. Semua hak cipta atas video, lagu, dan gambar milik masing-masing pemilik konten.
+            </div>
+
+            <!-- Copyright -->
+            <div class="flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
+                <p>&copy; 2026 TikGrab. All rights reserved.</p>
+                <div class="flex items-center gap-4">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-shield-halved text-emerald-500"></i> SSL 256-bit Encrypted</span>
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-bolt text-yellow-500"></i> Response &lt; 1.5s</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Application Logic Script -->
+    <script>
+
+    </script>
+</body>
+</html>
