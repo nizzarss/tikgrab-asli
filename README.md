@@ -1,1 +1,0 @@
-# tikgrab-asli
