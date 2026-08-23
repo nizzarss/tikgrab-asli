@@ -106,9 +106,6 @@ function escapeHtml(value) {
 }
 
 const API_URL = "https://www.tikwm.com/api/";
-const API_TIMEOUT_MS = 20000;
-let isProcessing = false;
-let isDownloading = false;
 
 const form = document.getElementById("downloadForm");
 const input = document.getElementById("tiktokUrl");
@@ -138,44 +135,28 @@ form.addEventListener("submit", handleDownloadSubmit);
 
 async function handleDownloadSubmit(event) {
     event.preventDefault();
-    if (isProcessing) return;
 
     const url = input.value.trim();
     hideError();
     resultSection.classList.add("hidden");
 
     if (!validateTikTokUrl(url)) {
-        showError("Masukkan tautan TikTok yang valid. Contoh: https://www.tiktok.com/@user/video/...");
+        showError("Masukkan tautan TikTok yang valid.");
         input.focus();
         return;
     }
 
-    isProcessing = true;
     setLoading(true);
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-
     try {
-        const response = await fetch(`${API_URL}?url=${encodeURIComponent(url)}`, {
-            method: "GET",
-            signal: controller.signal,
-            headers: { "Accept": "application/json" }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP_${response.status}`);
-        }
+        const response = await fetch(`${API_URL}?url=${encodeURIComponent(url)}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const data = await response.json();
         console.log("TikGrab API response:", data);
 
         if (!data || data.code !== 0 || !data.data) {
-            const message = String(data?.msg || "").toLowerCase();
-            if (message.includes("not found") || message.includes("tidak ditemukan")) {
-                throw new Error("VIDEO_NOT_FOUND");
-            }
-            throw new Error("VIDEO_UNAVAILABLE");
+            throw new Error(data?.msg || "Data video tidak tersedia.");
         }
 
         currentVideo = data.data;
@@ -183,48 +164,21 @@ async function handleDownloadSubmit(event) {
         saveToHistory(currentVideo);
 
         resultSection.classList.remove("hidden");
-        resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        resultSection.scrollIntoView({behavior:"smooth", block:"start"});
         showToast("Video berhasil diproses.", "success");
     } catch (error) {
         console.error("TikGrab error:", error);
-
-        if (error?.name === "AbortError") {
-            showError("Proses terlalu lama. Coba lagi beberapa saat lagi.");
-            showToast("Waktu proses habis.", "error");
-        } else if (error?.message === "VIDEO_NOT_FOUND") {
-            showError("Video tidak ditemukan atau link sudah tidak tersedia.");
-            showToast("Video tidak ditemukan.", "error");
-        } else if (error?.message === "VIDEO_UNAVAILABLE") {
-            showError("Video belum dapat diproses. Coba link TikTok lain.");
-            showToast("Video tidak tersedia.", "error");
-        } else if (error?.message?.startsWith("HTTP_")) {
-            showError("Layanan sedang bermasalah. Coba lagi beberapa saat lagi.");
-            showToast("Layanan sedang bermasalah.", "error");
-        } else {
-            showError("Gagal terhubung ke layanan. Periksa koneksi internet lalu coba lagi.");
-            showToast("Gagal memproses video.", "error");
-        }
+        showError("Gagal memproses video. Periksa link dan coba lagi. Jika tetap gagal, layanan sumber mungkin sedang tidak tersedia.");
+        showToast("Video gagal diproses.", "error");
     } finally {
-        clearTimeout(timeoutId);
-        isProcessing = false;
         setLoading(false);
     }
 }
 
 function validateTikTokUrl(url) {
-    if (!url || typeof url !== "string") return false;
-    const value = url.trim();
-    if (value.length > 2048) return false;
-
+    if (!url) return false;
     try {
-        const parsed = new URL(value);
-        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
-
-        const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
-        const allowed = host === "tiktok.com" || host.endsWith(".tiktok.com");
-        if (!allowed) return false;
-
-        // Accept normal TikTok video links and TikTok short/share links.
+        const host = new URL(url).hostname.toLowerCase();
         return host === "tiktok.com" || host.endsWith(".tiktok.com");
     } catch {
         return false;
@@ -301,50 +255,88 @@ function populateResult(video) {
     resShares.textContent = formatNumber(video.share_count);
 }
 
-function downloadMedia(type, label) {
-    if (isDownloading) {
-        showToast("Tunggu proses download sebelumnya selesai.", "info");
+function getVideoShareUrl() {
+    if (!currentVideo) return input?.value?.trim() || "";
+    return currentVideo.share_url || currentVideo.web_url || currentVideo.url || input.value.trim();
+}
+
+async function copyVideoLink() {
+    const url = getVideoShareUrl();
+    if (!url) {
+        showToast("Link video belum tersedia.", "error");
         return;
     }
+    try {
+        await navigator.clipboard.writeText(url);
+        showToast("Link video berhasil disalin.", "success");
+    } catch (error) {
+        showToast("Tidak bisa menyalin otomatis. Salin link dari kolom URL.", "error");
+    }
+}
 
+async function shareVideo() {
+    const url = getVideoShareUrl();
+    if (!url) {
+        showToast("Link video belum tersedia.", "error");
+        return;
+    }
+    const title = currentVideo?.title || "Video TikTok";
+    if (navigator.share) {
+        try {
+            await navigator.share({ title: "TikGrab", text: title, url });
+            showToast("Berhasil dibagikan.", "success");
+        } catch (error) {
+            if (error?.name !== "AbortError") showToast("Gagal membagikan video.", "error");
+        }
+    } else {
+        await copyVideoLink();
+        showToast("Fitur Share tidak tersedia. Link sudah disalin.", "info");
+    }
+}
+
+function setDownloadStatus(percent, text) {
+    const box=document.getElementById("downloadStatus");
+    const bar=document.getElementById("downloadProgress");
+    const pct=document.getElementById("downloadStatusPercent");
+    const label=document.getElementById("downloadStatusText");
+    if(!box||!bar||!pct||!label) return;
+    box.classList.remove("hidden");
+    const value=Math.max(0,Math.min(100,percent));
+    bar.style.width=value+"%";
+    pct.textContent=value+"%";
+    label.textContent=text;
+    if(value>=100) setTimeout(()=>box.classList.add("hidden"),1800);
+}
+
+function downloadMedia(type, label) {
     if (!currentVideo) {
         showToast("Proses video terlebih dahulu.", "error");
         return;
     }
 
     let url = "";
+
     if (type === "mp4-nwm") url = currentVideo.play || "";
     if (type === "mp4-hd") url = currentVideo.hdplay || currentVideo.play || "";
     if (type === "mp3") url = currentVideo.music || "";
 
-    if (!url || !/^https?:\/\//i.test(url)) {
+    if (!url) {
         showToast(`${label} tidak tersedia untuk video ini.`, "error");
         return;
     }
 
-    isDownloading = true;
     setDownloadStatus(25, `Menyiapkan ${label}...`);
     showToast(`Menyiapkan ${label}...`, "info");
 
-    try {
-        const link = document.createElement("a");
-        link.href = url;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        link.setAttribute("aria-label", `Buka ${label}`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-
-        setDownloadStatus(100, "Link download siap dibuka");
-        showToast(`${label} siap dibuka.`, "success");
-    } catch (error) {
-        console.error("Download error:", error);
-        setDownloadStatus(0, "Download gagal");
-        showToast("Download tidak dapat dibuka. Coba lagi.", "error");
-    } finally {
-        setTimeout(() => { isDownloading = false; }, 1000);
-    }
+    const link = document.createElement("a");
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setDownloadStatus(100, "Link download siap dibuka");
+    showToast(`${label} siap dibuka.`, "success");
 }
 
 
@@ -427,13 +419,11 @@ function setLoading(isLoading) {
     if (isLoading) {
         loadingState.classList.remove("hidden");
         submitButton.disabled = true;
-        submitButton.setAttribute("aria-busy", "true");
         submitButton.innerHTML = '<i class="fa-solid fa-spinner spin"></i><span>Memproses...</span>';
         loadingState.scrollIntoView({behavior:"smooth", block:"center"});
     } else {
         loadingState.classList.add("hidden");
         submitButton.disabled = false;
-        submitButton.removeAttribute("aria-busy");
         submitButton.innerHTML = '<i class="fa-solid fa-download"></i><span>Download</span>';
     }
 }
