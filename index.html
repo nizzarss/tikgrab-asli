@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TikGrab — Download TikTok Tanpa Watermark</title>
+<meta name="description" content="TikGrab adalah tool sederhana untuk download video TikTok tanpa watermark, audio, thumbnail, caption, dan Download Pack.">
+<meta name="theme-color" content="#0b0b16">
+<link rel="canonical" href="https://nizzarss.github.io/tikgrab-asli/">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js?v=5.2.8"></script>
+<script>
+tailwind.config={theme:{extend:{colors:{primary:'#6d36f5','primary2':'#a83cf0'}}}};
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<style>
+:root{--ink:#101323;--muted:#64748b;--line:#e9e7f2;--soft:#faf9fd;--purple:#6d36f5;--pink:#b83cf0;--green:#22c55e}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:Inter,system-ui,sans-serif;background:#fff;color:var(--ink);overflow-x:hidden}
+button,a,input,textarea{-webkit-tap-highlight-color:transparent}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid rgba(109,54,245,.24);outline-offset:2px}
+.brand-mark{background:linear-gradient(135deg,#6d36f5,#b83cf0);box-shadow:0 10px 28px rgba(109,54,245,.20)}
+.brand-glyph{font-weight:900;letter-spacing:-.08em;font-size:13px;line-height:1}
+.text-gradient{background:linear-gradient(90deg,#6d36f5 0%,#b83cf0 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero{background:radial-gradient(circle at 76% 22%,rgba(109,54,245,.10),transparent 28%),radial-gradient(circle at 48% 78%,rgba(196,61,240,.07),transparent 30%),#fff}
+.hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:#eeeaf6}
+.glow-orb{position:absolute;border-radius:999px;filter:blur(2px);pointer-events:none}
+.glow-orb.one{width:330px;height:330px;right:2%;top:30px;background:rgba(124,58,237,.07)}
+.glow-orb.two{width:240px;height:240px;left:-100px;bottom:-30px;background:rgba(236,72,153,.06)}
+.nav-link{position:relative;color:#475569;font-size:13px;font-weight:650;transition:.2s ease}
+.nav-link:hover,.nav-link.active{color:#111827}
+.nav-link.active::after{content:"";position:absolute;left:50%;bottom:-9px;width:28px;height:2px;border-radius:999px;background:linear-gradient(90deg,#6d36f5,#b83cf0);transform:translateX(-50%)}
+.hero-badge{background:#fbf8ff;border:1px solid #e4d8ff;color:#334155}
+.download-shell{background:#fff;border:1px solid #e5e0ef;box-shadow:0 22px 55px rgba(36,25,76,.11);transition:.25s ease}
+.download-shell:focus-within{transform:translateY(-2px);box-shadow:0 28px 70px rgba(36,25,76,.15),0 0 0 5px rgba(109,54,245,.07)}
+.download-input{color:#1e293b;background:transparent}.download-input::placeholder{color:#94a3b8}
+.primary-btn{background:linear-gradient(90deg,#6d36f5,#b83cf0);box-shadow:0 12px 28px rgba(109,54,245,.20);transition:.2s ease}
+.primary-btn:hover{transform:translateY(-1px);filter:saturate(1.06)}.primary-btn:active{transform:scale(.98)}
+.trust-card{background:#fff;border:1px solid #eceaf3;box-shadow:0 10px 28px rgba(15,23,42,.045)}
+.icon-orb{background:linear-gradient(135deg,#f1ecff,#fff5ff);color:#6d36f5}
+.section-soft{background:#fbfbfd;border-top:1px solid #efedf5;border-bottom:1px solid #efedf5}
+.card{background:#fff;border:1px solid #eceaf3;box-shadow:0 10px 30px rgba(15,23,42,.045);transition:.22s ease}
+.card:hover{transform:translateY(-2px);box-shadow:0 16px 36px rgba(15,23,42,.07)}
+.step-line{height:1px;background:linear-gradient(90deg,#ddd7ef,transparent)}
+.hero-title{font-size:clamp(3rem,5.8vw,5.15rem);line-height:.98;letter-spacing:-.06em}
+.result-card{animation:resultIn .35s ease both}
+@keyframes resultIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.download-option{transition:.18s ease}.download-option:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(109,54,245,.12)}
+.toast-in{animation:toastIn .25s ease both}@keyframes toastIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.batch-wrap{background:linear-gradient(135deg,#fbf9ff,#fff)}
+.review-star{color:#f59e0b}
+.footer{background:#090914;color:#94a3b8}.footer a:hover{color:#fff}
+.theme-toggle{transition:.2s ease}.theme-toggle:active{transform:scale(.94)}
+.hero-preview{width:min(100%,420px);background:#fff;border:1px solid #e7e2f1;border-radius:28px;padding:12px;box-shadow:0 28px 70px rgba(42,25,85,.14);position:relative;z-index:1}
+.hero-preview-media{height:250px;border-radius:20px;overflow:hidden;background:linear-gradient(145deg,#2b1b56,#6d36f5 52%,#c43df0);position:relative}
+.hero-preview-media::before{content:"";position:absolute;width:180px;height:180px;border-radius:50%;right:-45px;top:-55px;background:rgba(255,255,255,.12)}
+.hero-preview-media::after{content:"";position:absolute;width:130px;height:130px;border-radius:50%;left:-40px;bottom:-50px;background:rgba(255,255,255,.08)}
+.preview-mountain{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.2)),linear-gradient(145deg,#9cc8e8 0%,#f3d7b5 45%,#6d5a73 46%,#26334c 100%);opacity:.88}
+.preview-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}.preview-play span{width:58px;height:58px;border-radius:999px;background:rgba(15,15,25,.62);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;backdrop-filter:blur(8px)}
+.preview-info{padding:14px 4px 2px}.preview-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.preview-action{border:1px solid #ece8f5;border-radius:12px;padding:11px;font-size:11px;font-weight:700;color:#3b3650;background:#fff}.preview-action.primary{background:linear-gradient(90deg,#6d36f5,#b83cf0);border-color:transparent;color:#fff;grid-column:1/-1}
+.mobile-menu{display:none}
+@media(max-width:1023px){.desktop-nav{display:none!important}.mobile-menu{display:flex!important}.nav-wrap{height:64px}.hero-title{font-size:clamp(2.8rem,9vw,4.3rem)}.hero-preview{margin:0 auto}}
+@media(min-width:1024px){.mobile-menu{display:none!important}.desktop-nav{display:flex!important}}
+@media(max-width:640px){.hero-title{font-size:2.85rem;line-height:1.0}.hero{background:radial-gradient(circle at 85% 16%,rgba(109,54,245,.10),transparent 30%),#fff}.download-shell{padding:8px}.download-shell form{gap:8px}.download-shell .submit-btn{width:100%}.trust-card{box-shadow:none}.section-pad{padding-top:64px;padding-bottom:64px}.hero-preview{display:none}.nav-link{font-size:12px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+/* Dark mode: every important light text/background has an explicit dark counterpart. */
+html.dark body{background:#07070d;color:#f8fafc}
+html.dark .site-nav{background:rgba(7,7,13,.92)!important;border-color:#242438!important}
+html.dark .nav-link,html.dark .nav-link:hover{color:#c4c4d4}
+html.dark .nav-link.active{color:#fff}
+html.dark .hero{background:radial-gradient(circle at 76% 22%,rgba(109,54,245,.18),transparent 28%),radial-gradient(circle at 48% 78%,rgba(196,61,240,.10),transparent 30%),#07070d}
+html.dark .hero-badge{background:#151323;border-color:#3a3155;color:#e7e5f0}
+html.dark .download-shell,html.dark .trust-card,html.dark .card{background:#10101a;border-color:#29293d;color:#f8fafc;box-shadow:0 20px 55px rgba(0,0,0,.28)}
+html.dark .download-input{color:#fff}html.dark .download-input::placeholder{color:#77778d}
+html.dark .section-soft{background:#0c0c14;border-color:#222235}
+html.dark .text-slate-950,html.dark .text-slate-900{color:#f8fafc!important}
+html.dark .text-slate-800{color:#f1f5f9!important}html.dark .text-slate-700{color:#d6d6e1!important}html.dark .text-slate-600{color:#b5b7c6!important}html.dark .text-slate-500{color:#9da0b3!important}html.dark .text-slate-400{color:#85889d!important}
+html.dark .bg-white{background-color:#10101a!important}html.dark .bg-slate-50{background-color:#12121d!important}html.dark .bg-slate-100{background-color:#1b1b2a!important}
+html.dark .border-slate-200,html.dark .border-slate-100,html.dark .border-gray-200,html.dark .border-gray-100{border-color:#29293c!important}
+html.dark input,html.dark textarea{color:#f8fafc!important;background-color:#10101a!important}html.dark input::placeholder,html.dark textarea::placeholder{color:#73738a}
+html.dark .history-card{background:#12121d!important;border-color:#29293c!important}
+html.dark .hero-preview{background:#10101a;border-color:#29293d;box-shadow:0 28px 70px rgba(0,0,0,.38)}
+html.dark .preview-action{background:#151521;border-color:#302e43;color:#e9e7f3}
+html.dark .footer{background:#05050b}
+html.dark .mobile-menu button{border-color:#34344a!important;color:#e9e7f3!important;background:#10101a}
+</style>
+
+<style id="tikgrab-mobile-rating-compact">
+/* 5.2.3: Keep public reviews compact on phones without touching rating logic. */
+@media (max-width: 767px) {
+  /* Hide the full review feed on mobile; keep the rating summary/form visible. */
+  #reviewsList, #reviewList, .reviews-list, .review-list,
+  .reviews-container, .review-container {
+    max-height: 360px;
+    overflow: hidden;
+  }
+
+  /* If the page has an explicit "all reviews" block, show only the first few cards. */
+  #reviewsList > *:nth-child(n+4),
+  #reviewList > *:nth-child(n+4),
+  .reviews-list > *:nth-child(n+4),
+  .review-list > *:nth-child(n+4),
+  .reviews-container > *:nth-child(n+4),
+  .review-container > *:nth-child(n+4) {
+    display: none !important;
+  }
+}
+</style>
+
+
+  <link rel="icon" type="image/png" sizes="512x512" href="assets/tikgrab-logo.png?v=5.2.6">
+  <link rel="apple-touch-icon" sizes="512x512" href="assets/tikgrab-logo.png?v=5.2.6">
+</head>
+<body>
+
+<nav class="site-nav sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-slate-100">
+  <div class="nav-wrap max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+    <a href="#hero" class="flex items-center gap-2.5 font-extrabold text-lg text-slate-900">
+      <span class="brand-mark w-9 h-9 rounded-xl text-white flex items-center justify-center"><span class="brand-glyph">TG</span></span>
+      Tik<span class="text-gradient">Grab</span>
+    </a>
+    <div class="desktop-nav items-center gap-8">
+      <a href="#hero" class="nav-link active">Home</a>
+      <a href="#howToUse" class="nav-link">How to Use</a>
+      <a href="#features" class="nav-link">Features</a>
+      <a href="#ratingSection" class="nav-link">Reviews</a>
+      <a href="#faq" class="nav-link">FAQ</a>
+      <button type="button" onclick="toggleDarkMode()" title="Ganti tema" class="theme-toggle w-9 h-9 rounded-full border border-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-50"><i id="themeIcon" class="fa-solid fa-moon"></i></button>
+      <a href="contact.html" class="primary-btn text-white text-xs font-bold px-4 py-2.5 rounded-xl">Contact</a>
+    </div>
+    <div class="mobile-menu items-center gap-2">
+      <button type="button" onclick="toggleDarkMode()" title="Ganti tema" class="theme-toggle w-9 h-9 rounded-full border border-slate-200 text-slate-600 flex items-center justify-center"><i class="fa-solid fa-moon"></i></button>
+      <button type="button" class="w-9 h-9 rounded-xl border border-slate-200 text-slate-700 flex items-center justify-center" aria-label="Menu"><i class="fa-solid fa-bars"></i></button>
+    </div>
+  </div>
+</nav>
+
+<main id="hero" class="hero relative overflow-hidden">
+  <div class="glow-orb one"></div><div class="glow-orb two"></div>
+  <section class="relative max-w-7xl mx-auto px-4 sm:px-6 pt-14 sm:pt-20 lg:pt-24 pb-14 sm:pb-20">
+    <div class="grid lg:grid-cols-[1.05fr_.95fr] gap-12 lg:gap-16 items-center">
+      <div class="max-w-3xl">
+        <div class="hero-badge inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold mb-6"><i class="fa-solid fa-sparkles text-violet-500"></i>Fast. Simple. Free.</div>
+        <h1 class="hero-title font-extrabold text-slate-950 dark:text-white">Download TikTok<br><span class="text-gradient">Tanpa Watermark.</span></h1>
+        <p class="mt-6 max-w-xl text-base sm:text-lg leading-8 text-slate-600">Download video TikTok tanpa watermark. Cepat, kualitas tinggi, dan gratis untuk semua perangkat.</p>
+
+        <div class="max-w-2xl mt-8">
+          <form id="downloadForm" class="download-shell rounded-2xl p-2 flex flex-col sm:flex-row gap-2">
+            <div class="relative flex-grow flex items-center min-w-0">
+              <div class="absolute left-4 text-slate-400 pointer-events-none"><i class="fa-solid fa-link"></i></div>
+              <input aria-label="Tautan video TikTok" type="url" id="tiktokUrl" placeholder="Paste your TikTok link here..." autocomplete="off" required class="download-input w-full pl-11 pr-20 py-3.5 text-sm sm:text-base rounded-xl focus:outline-none">
+              <button type="button" onclick="handlePaste()" class="absolute right-2 text-xs font-semibold text-slate-500 hover:text-violet-600 px-2.5 py-2 rounded-lg">Paste</button>
+            </div>
+            <button type="submit" id="btnSubmit" class="submit-btn primary-btn text-white font-bold px-7 py-3.5 rounded-xl flex items-center justify-center gap-2 text-sm shrink-0"><i class="fa-solid fa-bolt"></i><span>Download</span></button>
+          </form>
+          <div id="errorAlert" class="hidden mt-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm text-left"><i class="fa-solid fa-circle-exclamation mr-2"></i><span id="errorMessage"></span></div>
+          <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-400"><span><i class="fa-regular fa-circle-check text-violet-500 mr-1"></i>No account needed</span><span>•</span><span>No watermark</span><span>•</span><span>Works on all devices</span></div>
+        </div>
+      </div>
+
+      <div class="hidden lg:flex justify-center lg:justify-end">
+        <div class="hero-preview">
+          <div class="hero-preview-media">
+            <div class="preview-mountain"></div>
+            <div class="absolute left-4 top-4 z-10 text-white text-xs font-bold">TikGrab Preview</div>
+            <div class="preview-play"><span><i class="fa-solid fa-play"></i></span></div>
+            <span class="absolute right-3 bottom-3 z-10 bg-black/65 text-white text-[10px] font-bold px-2 py-1 rounded">00:15</span>
+          </div>
+          <div class="preview-info">
+            <div class="text-xs text-slate-500">@naturevibes</div>
+            <div class="font-bold text-sm text-slate-900 mt-1">Sunset is therapy. ✨</div>
+            <div class="text-xs text-slate-500 mt-1">#fyp #sunset #nature</div>
+          </div>
+          <div class="preview-actions">
+            <div class="preview-action"><i class="fa-solid fa-download text-violet-600 mr-1"></i> Video <span class="text-[9px] text-slate-400">MP4 • HD</span></div>
+            <div class="preview-action"><i class="fa-solid fa-music text-fuchsia-600 mr-1"></i> Audio <span class="text-[9px] text-slate-400">MP3</span></div>
+            <div class="preview-action"><i class="fa-regular fa-image text-emerald-600 mr-1"></i> Thumbnail</div>
+            <div class="preview-action"><i class="fa-solid fa-file-lines text-violet-600 mr-1"></i> Caption</div>
+            <div class="preview-action primary"><i class="fa-solid fa-box-archive mr-1"></i> Download Pack</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-12">
+      <div class="trust-card rounded-2xl p-4 sm:p-5 flex items-start gap-3"><div class="icon-orb w-10 h-10 rounded-xl flex items-center justify-center shrink-0"><i class="fa-solid fa-bolt"></i></div><div><h3 class="font-bold text-sm">Super Fast</h3><p class="text-xs text-slate-500 mt-1 leading-5">Download in seconds.</p></div></div>
+      <div class="trust-card rounded-2xl p-4 sm:p-5 flex items-start gap-3"><div class="icon-orb w-10 h-10 rounded-xl flex items-center justify-center shrink-0"><i class="fa-solid fa-shield-halved"></i></div><div><h3 class="font-bold text-sm">No Watermark</h3><p class="text-xs text-slate-500 mt-1 leading-5">Clean video without TikTok watermark.</p></div></div>
+      <div class="trust-card rounded-2xl p-4 sm:p-5 flex items-start gap-3"><div class="icon-orb w-10 h-10 rounded-xl flex items-center justify-center shrink-0"><i class="fa-solid fa-mobile-screen-button"></i></div><div><h3 class="font-bold text-sm">All Devices</h3><p class="text-xs text-slate-500 mt-1 leading-5">Works on mobile, tablet, desktop.</p></div></div>
+      <div class="trust-card rounded-2xl p-4 sm:p-5 flex items-start gap-3"><div class="icon-orb w-10 h-10 rounded-xl flex items-center justify-center shrink-0"><i class="fa-solid fa-lock"></i></div><div><h3 class="font-bold text-sm">100% Free</h3><p class="text-xs text-slate-500 mt-1 leading-5">No account required.</p></div></div>
+    </div>
+  </section>
+</main>
+
+<section id="loadingState" class="hidden max-w-3xl mx-auto px-4 sm:px-6 py-10">
+  <div class="card rounded-2xl p-8 text-center"><div class="w-12 h-12 mx-auto rounded-full border-4 border-violet-100 border-t-violet-600 spin"></div><h3 class="mt-4 font-bold">Processing your video...</h3><p class="mt-1 text-sm text-slate-500">Tunggu sebentar.</p></div>
+</section>
+
+<section id="resultSection" class="hidden max-w-6xl mx-auto px-4 sm:px-6 py-12">
+  <div class="result-card card rounded-3xl overflow-hidden">
+    <div class="px-5 sm:px-7 py-4 bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white flex items-center justify-between gap-3"><div class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-emerald-200"></i><span class="font-bold text-sm">Video Ready!</span></div><button type="button" onclick="resetDownloader()" class="text-xs bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg">Download Another</button></div>
+    <div class="p-5 sm:p-7 grid lg:grid-cols-[280px_1fr] gap-7">
+      <div class="media-box"><div class="aspect-[9/16] bg-slate-950 rounded-2xl overflow-hidden shadow-md relative max-w-[280px] mx-auto">
+        <video id="resVideo" class="hidden w-full h-full object-contain bg-black" controls playsinline preload="metadata"></video>
+        <img id="resThumbnail" loading="lazy" src="" alt="Thumbnail" class="w-full h-full object-cover">
+        <div id="thumbnailFallback" class="hidden absolute inset-0 items-center justify-center text-white text-sm text-center p-4">Preview tidak tersedia</div>
+        <div id="previewPlayHint" class="absolute inset-0 flex items-center justify-center pointer-events-none"><div class="w-14 h-14 rounded-full bg-white/90 text-violet-600 flex items-center justify-center shadow-xl"><i class="fa-solid fa-play ml-0.5"></i></div></div>
+        <span id="resDuration" class="absolute bottom-3 right-3 bg-black/70 text-white text-[10px] font-bold px-2 py-1 rounded">00:00</span><span id="previewStatus" class="absolute left-3 bottom-3 bg-black/65 text-white text-[10px] px-2 py-1 rounded">Preview siap</span>
+      </div></div>
+      <div class="min-w-0">
+        <div class="flex items-center gap-3 mb-3"><div class="w-11 h-11 rounded-full bg-gradient-to-tr from-pink-500 to-yellow-400 p-0.5 shrink-0"><img id="resAvatar" loading="lazy" src="" alt="Avatar" class="w-full h-full object-cover rounded-full bg-white"></div><div class="min-w-0"><h4 id="resAuthor" class="font-bold text-slate-900 truncate">@creator</h4><p id="resAuthorName" class="text-xs text-slate-500 truncate">TikTok Creator</p></div></div>
+        <p id="resTitle" class="text-slate-700 text-sm sm:text-base font-semibold mb-4 line-clamp-3">-</p>
+        <div class="flex flex-wrap gap-4 text-xs text-slate-500 mb-6"><span><i class="fa-regular fa-heart text-pink-500 mr-1"></i><b id="resLikes">0</b></span><span><i class="fa-regular fa-comment text-violet-500 mr-1"></i><b id="resComments">0</b></span><span><i class="fa-solid fa-share text-sky-500 mr-1"></i><b id="resShares">0</b></span></div>
+        <div class="grid sm:grid-cols-2 gap-2 mb-5"><button type="button" onclick="copyVideoLink()" class="action-mini bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 px-3 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 transition"><i class="fa-regular fa-copy"></i>Copy Link</button><button type="button" onclick="shareVideo()" class="action-mini bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-100 font-semibold py-3 px-3 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 transition"><i class="fa-solid fa-share-nodes"></i>Share</button></div>
+        <div id="downloadStatus" class="hidden mb-3 rounded-xl border border-violet-100 bg-violet-50 p-3"><div class="flex items-center justify-between text-xs font-semibold text-violet-700"><span id="downloadStatusText">Menyiapkan download...</span><span id="downloadStatusPercent">0%</span></div><div class="mt-2 h-1.5 bg-violet-100 rounded-full overflow-hidden"><div id="downloadProgress" class="h-full bg-violet-600 rounded-full transition-all" style="width:0%"></div></div></div>
+        <div class="space-y-2">
+          <button type="button" onclick="downloadMedia('mp4-nwm','MP4 Tanpa Watermark')" class="download-option w-full bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:brightness-105 text-white font-semibold py-3.5 px-4 rounded-xl flex items-center justify-between gap-3"><span><i class="fa-solid fa-download mr-2"></i>Download Video (MP4)</span><span class="text-[10px] bg-white/15 px-2 py-1 rounded">No Watermark</span></button>
+          <button type="button" onclick="downloadMedia('mp3','Audio MP3')" class="download-option w-full bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-100 font-semibold py-3.5 px-4 rounded-xl flex items-center justify-between gap-3"><span><i class="fa-solid fa-music mr-2"></i>Download Audio (MP3)</span><span class="text-[10px] bg-white px-2 py-1 rounded border">High Quality</span></button>
+          <button type="button" onclick="downloadMedia('mp4-hd','MP4 HD')" class="download-option w-full bg-fuchsia-50 hover:bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-100 font-semibold py-3.5 px-4 rounded-xl flex items-center justify-between gap-3"><span><i class="fa-solid fa-film mr-2"></i>Download Video HD</span><span class="text-[10px] bg-white px-2 py-1 rounded border">HD</span></button>
+          <button type="button" onclick="downloadPack()" class="download-option w-full bg-gradient-to-r from-violet-600 to-fuchsia-500 hover:brightness-105 text-white font-semibold py-3.5 px-4 rounded-xl flex items-center justify-between gap-3"><span><i class="fa-solid fa-box-archive mr-2"></i>Download Pack (ZIP)</span><span class="text-[10px] bg-white/15 px-2 py-1 rounded">Video + Audio + Thumbnail + Caption</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features" class="section-soft">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 section-pad py-16">
+    <div class="text-center max-w-2xl mx-auto"><p class="text-xs font-bold tracking-[.2em] text-violet-600 uppercase">Everything you need</p><h2 class="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight">Everything you need <span class="text-gradient">in one place</span></h2><p class="mt-4 text-sm sm:text-base text-slate-500">TikGrab is not just a video downloader. It’s a complete toolkit for TikTok content.</p></div>
+    <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div class="card rounded-2xl p-5"><div class="w-11 h-11 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center"><i class="fa-solid fa-video"></i></div><h3 class="mt-4 font-bold">Download Video</h3><p class="mt-2 text-xs leading-5 text-slate-500">Save TikTok videos in high quality without watermark.</p></div>
+      <div class="card rounded-2xl p-5"><div class="w-11 h-11 rounded-xl bg-fuchsia-50 text-fuchsia-600 flex items-center justify-center"><i class="fa-solid fa-music"></i></div><h3 class="mt-4 font-bold">Extract Audio</h3><p class="mt-2 text-xs leading-5 text-slate-500">Convert TikTok to MP3 and download your favorite sound.</p></div>
+      <div class="card rounded-2xl p-5"><div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fa-regular fa-image"></i></div><h3 class="mt-4 font-bold">Get Thumbnail</h3><p class="mt-2 text-xs leading-5 text-slate-500">Download TikTok thumbnails in high quality.</p></div>
+      <div class="card rounded-2xl p-5"><div class="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center"><i class="fa-solid fa-file-lines"></i></div><h3 class="mt-4 font-bold">Copy Caption</h3><p class="mt-2 text-xs leading-5 text-slate-500">Copy video caption with one click. Easy and fast.</p></div>
+      <div class="card rounded-2xl p-5"><div class="w-11 h-11 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center"><i class="fa-solid fa-box-archive"></i></div><h3 class="mt-4 font-bold">Download Pack</h3><p class="mt-2 text-xs leading-5 text-slate-500">Download video, audio, thumbnail, and caption in one ZIP file.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="howToUse" class="bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-16">
+    <div class="text-center"><p class="text-xs font-bold tracking-[.2em] text-violet-600 uppercase">Simple workflow</p><h2 class="mt-3 text-3xl sm:text-4xl font-extrabold">How to use <span class="text-gradient">TikGrab</span></h2></div>
+    <div class="mt-10 grid md:grid-cols-4 gap-4">
+      <div class="card rounded-2xl p-6 text-center"><div class="w-12 h-12 mx-auto rounded-full bg-violet-50 text-violet-600 flex items-center justify-center font-extrabold">1</div><h3 class="mt-4 font-bold">Paste Link</h3><p class="mt-2 text-xs leading-5 text-slate-500">Copy the TikTok link and paste it above.</p></div>
+      <div class="card rounded-2xl p-6 text-center"><div class="w-12 h-12 mx-auto rounded-full bg-violet-50 text-violet-600 flex items-center justify-center font-extrabold">2</div><h3 class="mt-4 font-bold">Process</h3><p class="mt-2 text-xs leading-5 text-slate-500">We process the video and prepare it for you.</p></div>
+      <div class="card rounded-2xl p-6 text-center"><div class="w-12 h-12 mx-auto rounded-full bg-violet-50 text-violet-600 flex items-center justify-center font-extrabold">3</div><h3 class="mt-4 font-bold">Choose Option</h3><p class="mt-2 text-xs leading-5 text-slate-500">Select the format or content you want.</p></div>
+      <div class="card rounded-2xl p-6 text-center"><div class="w-12 h-12 mx-auto rounded-full bg-violet-50 text-violet-600 flex items-center justify-center font-extrabold">4</div><h3 class="mt-4 font-bold">Save to Device</h3><p class="mt-2 text-xs leading-5 text-slate-500">Your file will be downloaded instantly.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="historySection" class="section-soft">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-16">
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4"><div><p class="text-xs font-bold tracking-[.2em] text-violet-600 uppercase">Your recent downloads</p><h2 class="mt-2 text-2xl sm:text-3xl font-extrabold">Download History</h2></div><button type="button" onclick="clearHistory()" class="text-xs font-semibold text-violet-600 hover:text-violet-800">Clear history</button></div>
+    <div id="historyList" class="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    <p id="historyEmpty" class="text-sm text-slate-500 text-center py-8">Belum ada riwayat download di perangkat ini.</p>
+  </div>
+</section>
+
+<section id="batchSection" class="bg-white">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-16">
+    <div class="batch-wrap card rounded-3xl p-6 sm:p-8">
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4"><div><p class="text-xs font-bold tracking-[.2em] text-violet-600 uppercase">TikGrab 5.0</p><h2 class="mt-2 text-2xl sm:text-3xl font-extrabold">📦 Batch Download</h2><p class="mt-2 text-sm text-slate-500">Masukkan beberapa link TikTok sekaligus, satu link per baris.</p></div><span class="inline-flex w-fit px-3 py-1.5 rounded-full bg-violet-50 text-violet-700 text-xs font-bold">Up to 10 links</span></div>
+      <textarea id="batchUrls" rows="6" placeholder="https://www.tiktok.com/@user/video/123...&#10;https://www.tiktok.com/@user/video/456...&#10;https://www.tiktok.com/@user/video/789..." class="mt-6 w-full px-4 py-3.5 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-200 resize-y text-sm"></textarea>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-3"><span id="batchCount" class="text-xs text-slate-500">0 link terdeteksi</span><button id="batchStart" type="button" class="primary-btn text-white font-bold px-5 py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>📦 Proses Batch</button></div>
+      <div id="batchProgressWrap" class="hidden mt-6"><div class="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2"><span id="batchProgressText">Menyiapkan...</span><span id="batchProgressPercent">0%</span></div><div class="w-full h-2 rounded-full bg-violet-100 overflow-hidden"><div id="batchProgressBar" class="h-full bg-gradient-to-r from-violet-600 to-fuchsia-500 rounded-full transition-all" style="width:0%"></div></div></div>
+      <div id="batchResults" class="space-y-2 mt-5"></div>
+    </div>
+  </div>
+</section>
+
+<section id="ratingSection" class="section-soft">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-16">
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6"><div><p class="text-xs font-bold tracking-[.2em] text-violet-600 uppercase">What users say</p><h2 class="mt-2 text-3xl sm:text-4xl font-extrabold">What <span class="text-gradient">users are saying</span></h2><p class="mt-3 text-sm text-slate-500">Bagikan pengalamanmu menggunakan TikGrab.</p></div><div class="card rounded-2xl px-6 py-4 flex items-center gap-4"><div id="reviewAverage" class="text-3xl font-extrabold">0.0 / 5</div><div><div class="review-star text-sm">★★★★★</div><div id="reviewCount" class="text-xs text-slate-500">Belum ada ulasan</div></div></div></div>
+    <div class="mt-8 grid lg:grid-cols-[.8fr_1.2fr] gap-5">
+      <div class="card rounded-2xl p-6"><h3 class="font-bold">Beri rating</h3><div id="ratingStars" class="flex items-center gap-1 mt-4" aria-label="Pilih rating 1 sampai 5"><button type="button" class="tg48-star-btn text-3xl text-gray-300" data-rating="1">★</button><button type="button" class="tg48-star-btn text-3xl text-gray-300" data-rating="2">★</button><button type="button" class="tg48-star-btn text-3xl text-gray-300" data-rating="3">★</button><button type="button" class="tg48-star-btn text-3xl text-gray-300" data-rating="4">★</button><button type="button" class="tg48-star-btn text-3xl text-gray-300" data-rating="5">★</button></div><input id="reviewName" type="text" maxlength="40" placeholder="Nama (opsional)" class="w-full mt-5 mb-3 px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-200"><textarea id="reviewText" rows="4" maxlength="300" placeholder="Tulis ulasanmu..." class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-violet-200 resize-none"></textarea><div class="mt-3 flex flex-col gap-3"><span id="reviewFormStatus" class="text-xs text-slate-500">Pilih rating terlebih dahulu.</span><button id="submitReview" type="button" class="primary-btn text-white font-bold px-5 py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>Kirim Ulasan</button></div></div>
+      <div><div id="reviewsList" class="grid md:grid-cols-2 gap-4"></div><p id="noReviews" class="text-sm text-slate-500 text-center py-8">Belum ada ulasan. Jadilah yang pertama!</p></div>
+    </div>
+    <p class="text-[11px] text-slate-400 mt-6">Rating publik tersimpan secara online dan dapat dilihat lintas perangkat setelah backend dikonfigurasi.</p>
+  </div>
+</section>
+
+<section id="faq" class="bg-white">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-16"><div class="text-center"><p class="text-xs font-bold tracking-[.2em] text-violet-600 uppercase">FAQ</p><h2 class="mt-2 text-3xl sm:text-4xl font-extrabold">Frequently asked questions</h2></div><div class="mt-8 space-y-3">
+    <div class="card rounded-2xl overflow-hidden"><button type="button" onclick="toggleFaq(1)" class="w-full px-5 py-4 flex justify-between text-left font-semibold text-sm"><span>Apa itu TikGrab?</span><i id="faqIcon-1" class="fa-solid fa-chevron-down text-slate-400 transition-transform"></i></button><div id="faqAnswer-1" class="hidden px-5 pb-5 text-sm text-slate-500 leading-6">TikGrab adalah tool berbasis web untuk memproses dan mengunduh video TikTok dari tautan yang dapat diakses publik.</div></div>
+    <div class="card rounded-2xl overflow-hidden"><button type="button" onclick="toggleFaq(2)" class="w-full px-5 py-4 flex justify-between text-left font-semibold text-sm"><span>Apakah perlu membuat akun?</span><i id="faqIcon-2" class="fa-solid fa-chevron-down text-slate-400 transition-transform"></i></button><div id="faqAnswer-2" class="hidden px-5 pb-5 text-sm text-slate-500 leading-6">Tidak. TikGrab dirancang agar pengguna bisa langsung mencoba tanpa membuat akun.</div></div>
+    <div class="card rounded-2xl overflow-hidden"><button type="button" onclick="toggleFaq(3)" class="w-full px-5 py-4 flex justify-between text-left font-semibold text-sm"><span>Kenapa video kadang gagal?</span><i id="faqIcon-3" class="fa-solid fa-chevron-down text-slate-400 transition-transform"></i></button><div id="faqAnswer-3" class="hidden px-5 pb-5 text-sm text-slate-500 leading-6">Layanan pihak ketiga dapat berubah atau membatasi permintaan. Coba lagi beberapa saat kemudian atau gunakan link TikTok lain.</div></div>
+    <div class="card rounded-2xl overflow-hidden"><button type="button" onclick="toggleFaq(4)" class="w-full px-5 py-4 flex justify-between text-left font-semibold text-sm"><span>Apakah semua video boleh diunduh?</span><i id="faqIcon-4" class="fa-solid fa-chevron-down text-slate-400 transition-transform"></i></button><div id="faqAnswer-4" class="hidden px-5 pb-5 text-sm text-slate-500 leading-6">Unduh hanya konten yang memang boleh kamu simpan atau gunakan dan hormati hak cipta serta ketentuan platform.</div></div>
+  </div></div>
+</section>
+
+<section id="trustLegal" class="section-soft">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-16"><div class="card rounded-3xl p-6 sm:p-8"><div class="flex items-start gap-3 mb-6"><div class="w-11 h-11 rounded-xl icon-orb flex items-center justify-center shrink-0"><i class="fa-solid fa-shield-halved"></i></div><div><h2 class="text-xl sm:text-2xl font-bold">Safe, transparent, and easy to use</h2><p class="text-sm text-slate-500 mt-1">Informasi penting tentang penggunaan TikGrab.</p></div></div><div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3"><a href="privacy.html" class="rounded-2xl border border-slate-100 bg-slate-50 hover:bg-violet-50 p-4 transition"><div class="font-semibold text-sm">Privacy Policy</div><div class="text-xs text-slate-500 mt-1">Cara kami menangani informasi.</div></a><a href="terms.html" class="rounded-2xl border border-slate-100 bg-slate-50 hover:bg-violet-50 p-4 transition"><div class="font-semibold text-sm">Terms of Service</div><div class="text-xs text-slate-500 mt-1">Aturan penggunaan TikGrab.</div></a><a href="contact.html" class="rounded-2xl border border-slate-100 bg-slate-50 hover:bg-violet-50 p-4 transition"><div class="font-semibold text-sm">Contact</div><div class="text-xs text-slate-500 mt-1">Hubungi kami untuk pertanyaan.</div></a><a href="disclaimer.html" class="rounded-2xl border border-slate-100 bg-slate-50 hover:bg-violet-50 p-4 transition"><div class="font-semibold text-sm">Disclaimer</div><div class="text-xs text-slate-500 mt-1">Batasan layanan dan penggunaan.</div></a></div><div class="mt-5 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-xs text-amber-900 leading-6"><i class="fa-solid fa-circle-info mr-1"></i>TikGrab bukan layanan resmi TikTok, Instagram, atau platform pihak ketiga lainnya. Gunakan layanan ini hanya untuk konten yang memang kamu berhak unduh dan gunakan.</div></div></div>
+</section>
+
+<footer class="footer"><div class="max-w-7xl mx-auto px-4 sm:px-6 py-12"><div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8"><div><div class="flex items-center gap-2 text-white font-extrabold text-lg"><span class="brand-mark w-8 h-8 rounded-lg flex items-center justify-center text-xs"><span class="brand-glyph">TG</span></span>TikGrab</div><p class="text-xs leading-6 mt-4 max-w-xs">Save what inspires you. Fast. Simple. Free.</p></div><div><h3 class="text-white text-sm font-bold">Tools</h3><div class="mt-4 space-y-2 text-xs"><a href="#features" class="block">Video Downloader</a><a href="#features" class="block">MP3 Downloader</a><a href="#features" class="block">Thumbnail Downloader</a></div></div><div><h3 class="text-white text-sm font-bold">Legal</h3><div class="mt-4 space-y-2 text-xs"><a href="terms.html" class="block">Terms of Service</a><a href="privacy.html" class="block">Privacy Policy</a><a href="disclaimer.html" class="block">Disclaimer</a></div></div><div><h3 class="text-white text-sm font-bold">Contact</h3><div class="mt-4 space-y-2 text-xs"><a href="contact.html" class="block">Contact Us</a><a href="mailto:support@tikgrab.com" class="block">support@tikgrab.com</a></div></div></div><div class="border-t border-white/10 mt-10 pt-5 flex flex-col sm:flex-row justify-between gap-3 text-[11px]"><span>© 2026 TikGrab. All rights reserved.</span><span><i class="fa-solid fa-bolt text-yellow-400 mr-1"></i>Simple & responsive</span></div></div></footer>
+
+<div id="toastContainer" class="fixed z-50 right-4 bottom-4 w-[calc(100%-2rem)] sm:w-auto sm:max-w-sm space-y-2"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="script.js?v=5.2.8"></script>
+
+</body>
+</html>
